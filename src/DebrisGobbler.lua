@@ -94,24 +94,30 @@ function DebrisGobbler:AddItem(Item: Instance, Time: number?): number
 
 	-- We're locked to 60fps, so we can save on # of nodes by rounding to the next nearest frame.
 	local ExpiryTime: number = ceil((clock() + (Time or 7)) * self.MAX_FPS) / self.MAX_FPS
-
+	
 	if InstanceReferences[Item] then
-		return ExpiryTime
+		local Node: Node = InstanceReferences[Item] :: Node
+		if Node['ExpiryTime'] < ExpiryTime then
+			return Node['ExpiryTime']
+		end
+		self:RemoveItem(Item)
 	end
 
-	local Node: Node = ExpiryReferences[ExpiryTime]
+	local Node: Node = ExpiryReferences[ExpiryTime] :: Node
 
 	if Node == nil then
-		Node = { ["n"] = 0, ["Instances"] = {} } :: Node
+		Node = { ["ExpiryTime"] = ExpiryTime, ["n"] = 0, ["Instances"] = {} } :: Node
 		ExpiryReferences[ExpiryTime] = Node
 		DebrisHeap:insert(ExpiryTime, Node)
 	end
-
-	Node["Instances"][Item] = if self.EARLY_DESTRUCTION_CLEARING
-		then Item.Destroying:Connect(function()
+	
+	if self.EARLY_DESTRUCTION_CLEARING then 
+		Node["Instances"][Item] = Item.Destroying:Connect(function()
 			self:RemoveItem(Item)
 		end)
-		else true
+	else
+		Node["Instances"][Item] = true
+	end
 
 	InstanceReferences[Item] = Node
 	Node["n"] += 1
@@ -149,7 +155,7 @@ function DebrisGobbler:RemoveItem(Item: Instance): boolean
 	return not not Node
 end
 
-type Node = { ["Instances"]: { [Instance]: boolean | RBXScriptConnection }, ["n"]: number }
+type Node = { ["Instances"]: { [Instance]: boolean | RBXScriptConnection }, ["n"]: number, ["ExpiryTime"]: number }
 type ExpiryReferences = { [number]: Node }
 type InstanceReferences = { [Instance]: Node }
 type DebrisGobbler = typeof(DebrisGobbler)
