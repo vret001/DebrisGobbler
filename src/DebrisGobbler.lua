@@ -56,7 +56,7 @@ function DebrisGobbler:Init()
 		local currentTime: number = clock() + (1 / self.MAX_FPS)
 
 		if Node and Value < currentTime then
-			ExpiryReferences[Node] = nil
+			ExpiryReferences[Value] = nil
 			DebrisHeap:pop()
 
 			for Item: Instance, _ in pairs(Node["Instances"]) do
